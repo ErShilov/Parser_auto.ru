@@ -2,6 +2,8 @@ import requests
 import pandas as pd
 import datetime as dt
 import os
+import glob
+
 
 # Подготовка заголовка запроса записанного в файл
 with open('header.txt', 'r') as file:
@@ -39,7 +41,7 @@ search_step = 10000
 # Количество пройденных машин
 found_cars = 0
 
-# Подготавливаем директорию для файлов если она
+# Подготавливаем директорию для файлов если она отсутствует
 dir_name = 'OUT'
 if not os.path.exists(dir_name):
     dir_path = os.path.join(dir_name)
@@ -47,7 +49,7 @@ if not os.path.exists(dir_name):
 
 # Подготавливаем дату для имени файла
 now = dt.datetime.now()
-date = '{}-{}-{}'.format(now.year, now.month, now.day)
+date_for_name = '{}-{}-{}'.format(now.year, now.month, now.day)
 
 # Основной цикл
 while start_price < max_price:
@@ -144,7 +146,7 @@ while start_price < max_price:
     df.drop_duplicates(subset=['ID'], inplace=True)
 
     # Сохраняем все в файл
-    file_name = '{}-{}_cars_auto.ru_{}.xlsx'.format(start_price, stop_price, date)
+    file_name = '{}-{}_cars_auto.ru_{}.xlsx'.format(start_price, stop_price, date_for_name)
     file_path = os.path.join(dir_name, file_name)
     df.to_excel(file_path, index=False)
 
@@ -158,3 +160,24 @@ while start_price < max_price:
 # Если все ок выводим сообщение:
 print('Парсинг данных успешно завершен')
 
+# Объединяем все созданные файлы в один через общий датафрейм
+print('\nОбъединяю все в общий файл, это может потребовать несколько минут...')
+files_mask = '*.xlsx'
+files_path = os.path.join(dir_name, files_mask)
+files = glob.glob(files_path)
+
+df = pd.DataFrame()
+for file in files:
+    dump = pd.read_excel(file)
+    df = pd.concat([df, dump])
+
+# Сохраняем результат объединения в один файл
+file_name = 'All_cars_{}.xlsx'.format(date_for_name)
+file_path = os.path.join(dir_name, file_name)
+df.to_excel(file_path, index=False)
+
+# Если файл сохранен выводим сообщение об этом и удалям ненужные временные файлы
+if os.path.exists(file_path):
+    print('Файл "{}" успешно сохранен'.format(file_name))
+    for file in files:
+        os.remove(file)
